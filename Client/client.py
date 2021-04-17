@@ -13,9 +13,13 @@ from threading import Thread
 
 # host = '54.162.149.119'
 host = 'localhost'
-port = 60003
+port = 60002
 # port = 60002
 BUFFER_SIZE = 1024
+
+# UDP Settings
+udpPort = 60003
+udpBUFFER_SIZE = 64000
 
 File_path = "ArchivosRecibidos/"
 
@@ -26,12 +30,18 @@ AKN_OK = 'Ok'
 AKN_HASH = 'HashOk'
 ERROR = 'Error'
 AKN_COMPLETE = 'SendComplete'
-
+AKN_START_UDP = "UDP"
 
 
 class ClientProtocol:
 
     def __init__(self):
+        # UDP
+        self.udp_server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.udp_server_socket.settimeout(1)
+        self.udp_server_address = (host, udpPort)
+
+        # TCP
         self.id = 0
         self.clients_number = 0
         self.server_file_name = ''
@@ -79,7 +89,7 @@ class ClientProtocol:
         B = client_socket.recv(BUFFER_SIZE)
         b = B.decode('utf-8')
         self.bytes_received += len(B)
-      #  self.packages_received += 1
+        #  self.packages_received += 1
         return b
 
     def send_to_server(self, client_socket, segment, print_message):
@@ -105,6 +115,9 @@ class ClientProtocol:
             client_socket.connect((host, port))
             self.port = client_socket.getsockname()[1]
             self.ip = socket.gethostname()
+
+            # UDP
+
         except socket.error as e:
             print('Client{} Says: error creating socket ', str(e))
 
@@ -127,9 +140,6 @@ class ClientProtocol:
 
                 self.send_to_server(client_socket, AKN_READY,
                                     "Client Says: communicating to server that client is ready for file transport")
-
-
-
 
                 reply = self.receive_from_server(client_socket)
 
@@ -156,30 +166,40 @@ class ClientProtocol:
                 self.client_file_name = "Cliente{}-Prueba-{}.{}".format(self.id, self.clients_number,
                                                                         self.server_file_name.split('.')[-1])
 
+                # Start UDP Transmission
+                self.udp_server_socket.sendto(str.encode(AKN_START_UDP), self.udp_server_address)
+
                 start_time = time.time()
 
                 progress = tqdm(range(self.file_size), f" Client{self.id} receiving {self.server_file_name}", unit="B",
                                 unit_scale=True,
                                 unit_divisor=BUFFER_SIZE)
+
+                bReceived = 0
                 with open(File_path + self.client_file_name, "wb") as f:
 
-                    bReceived=0
-                    while bReceived<self.file_size:
+                    while bReceived < self.file_size:
 
-                        # read 1024 bytes from the socket (receive)
-                        bytes_read = client_socket.recv(BUFFER_SIZE)
+                        # read bytes from the socket (receive)
+                        try:
+                            data, address = self.udp_server_socket.recvfrom(udpBUFFER_SIZE)
+
+                        except socket.error as e:
+                            self.success_connection = False
+                            break
+                        bytes_read = len(data)
 
                         # write to the file the bytes we just received
-                        f.write(bytes_read)
+                        f.write(data)
 
-                        bReceived+=len(bytes_read)
-                        self.bytes_received += len(bytes_read)
+                        bReceived += bytes_read
+                        self.bytes_received += bytes_read
 
-                        progress.update(len(bytes_read))
+                        progress.update(bytes_read)
 
                     f.close()
 
-                self.packages_received = self.file_size/BUFFER_SIZE;
+                self.packages_received = bReceived / udpBUFFER_SIZE;
                 self.send_to_server(client_socket, AKN_COMPLETE,
                                     "Client{} Says: file transmission is complete".format(self.id))
 
@@ -214,7 +234,7 @@ class ClientProtocol:
     def log_info_c(self):
         logging.info(
             '_____________________________________________________________________________________________________')
-        d = {1: 'yes', 2: 'no'}
+        d = {True: 'yes', False: 'no'}
         logging.info('Client{}: File name: {}'.format(self.id, self.server_file_name))
         logging.info('Client{}: File size: {}'.format(self.id, self.file_size))
         logging.info('Client{}: Client connection: ({}:{})'.format(self.id, self.ip, self.port))
@@ -222,7 +242,6 @@ class ClientProtocol:
         logging.info('Client{}: Running time: {} s'.format(self.id, self.running_time))
         logging.info('Client{}: Bytes received: {} B'.format(self.id, self.bytes_received))
         logging.info('Client{}: Packages received {}'.format(self.id, self.packages_received))
-
 
 
 def main():
