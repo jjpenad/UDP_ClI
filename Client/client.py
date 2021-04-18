@@ -38,7 +38,7 @@ class ClientProtocol:
     def __init__(self):
         # UDP
         self.udp_server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.udp_server_socket.settimeout(3)
+        self.udp_server_socket.settimeout(5)
         self.udp_server_address = (host, udpPort)
 
         # TCP
