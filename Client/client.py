@@ -12,7 +12,7 @@ from datetime import datetime
 from threading import Thread
 
 # host = '54.162.149.119'
-host = 'localhost'
+host = '192.168.1.56'
 port = 60002
 # port = 60002
 BUFFER_SIZE = 1024
@@ -38,7 +38,7 @@ class ClientProtocol:
     def __init__(self):
         # UDP
         self.udp_server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.udp_server_socket.settimeout(1)
+        self.udp_server_socket.settimeout(3)
         self.udp_server_address = (host, udpPort)
 
         # TCP

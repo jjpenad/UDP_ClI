@@ -13,7 +13,7 @@ from datetime import datetime
 from tqdm import tqdm
 
 # host = socket.gethostbyaddr("54.162.149.119")[0]
-host = 'localhost'
+host = '0.0.0.0'
 port = 60002
 BUFFER_SIZE = 1024
 
@@ -321,7 +321,7 @@ class UDPServer:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Socket
         self.sock.bind((self.host, self.port))
 
-    @threadsafe_function
+
     def send_file_UDP(self, thread_id, file_size, file_name, bytes_sent, packages_sent):
         data, client_address = self.sock.recvfrom(1024)
 
